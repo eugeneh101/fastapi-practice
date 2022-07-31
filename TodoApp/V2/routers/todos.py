@@ -1,23 +1,25 @@
 import sys
 
-sys.path.append("..")
+sys.path.append("..")  ### need to make less janky
 
-from typing import Optional
+from typing import Generator, List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 import models
-from database import engine, Base, SessionLocal
+from database import engine, SessionLocal
 from .auth import get_current_user, get_user_exception
 
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/todos", tags=["todos"], responses={404: {"description": "Not found"}}
+)
 models.Base.metadata.create_all(bind=engine)
 
 
-def get_db():
+def get_db() -> Generator:
     try:
         db = SessionLocal()
         yield db
@@ -35,27 +37,26 @@ class Todo(BaseModel):
 @router.get("/")
 async def read_all(
     db: Session = Depends(get_db),
-):  # always close database, injecting dependency
+) -> List[models.Todos]:  # always close database, injecting dependency
     """curl -X 'GET' 'http://localhost:8000/' -H 'accept: application/json'"""
     return db.query(models.Todos).all()
 
 
-@router.get("/todos/user")
+@router.get("/user")
 async def read_all_by_user(
     user: dict = Depends(get_current_user), db: Session = Depends(get_db)
-):
+) -> List[models.Todos]:
     if user is None:
         raise get_user_exception()
     return db.query(models.Todos).filter(models.Todos.owner_id == user.get("id")).all()
 
 
-@router.get("/todo/{todo_id}")
+@router.get("/{todo_id}")
 async def read_todo(
     todo_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)
-):
+) -> models.Todos:
     if user is None:
         raise get_user_exception()
-    print(user)
     todo_model = (
         db.query(models.Todos)
         .filter(models.Todos.id == todo_id)
@@ -71,7 +72,7 @@ async def read_todo(
 @router.post("/")
 async def create_todo(
     todo: Todo, user: dict = Depends(get_current_user), db: Session = Depends(get_db)
-):
+) -> dict:
     if user is None:
         raise get_user_exception()
     todo_model = models.Todos()  # Model instance
@@ -91,7 +92,7 @@ async def update_todo(
     todo: Todo,
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> dict:
     todo_model = (
         db.query(models.Todos)  # sqlalchemy Query object
         .filter(models.Todos.id == todo_id)  # still sqlalchemy Query object
@@ -113,7 +114,7 @@ async def update_todo(
 @router.delete("/{todo_id}")
 async def delete_todo(
     todo_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)
-):
+) -> dict:
     if user is None:
         raise get_user_exception()
     todo_model = (
@@ -130,9 +131,9 @@ async def delete_todo(
         return successful_response(status_code=200)
 
 
-def successful_response(status_code: int):
+def successful_response(status_code: int) -> dict:
     return {"status": status_code, "transaction": "Successful"}
 
 
-def http_exception():  # regular, not async function
+def http_exception() -> HTTPException:  # regular, not async function
     return HTTPException(status_code=404, detail="Todo not found")

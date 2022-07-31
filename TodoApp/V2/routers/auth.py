@@ -2,7 +2,7 @@ import sys
 sys.path.append("..")
 
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union
 
 from fastapi import (
     #    FastAPI,
@@ -38,7 +38,11 @@ models.Base.metadata.create_all(bind=engine)  # create databases
 
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
 # app = FastAPI()
-router = APIRouter()
+router = APIRouter(
+    prefix="/auth",  # prefix to url
+    tags=["auth"],  # puts in separate group in Swagger docs
+    responses={401: {"user": "Not authorized"}}
+)
 
 
 def get_db():
@@ -49,15 +53,15 @@ def get_db():
         db.close()
 
 
-def get_password_hash(password):
+def get_password_hash(password) -> str:
     return bcrypt_context.hash(password)
 
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password, hashed_password) -> bool:
     return bcrypt_context.verify(plain_password, hashed_password)
 
 
-def authenticate_user(username: str, password: str, db):
+def authenticate_user(username: str, password: str, db) -> Union[models.Users, bool]:
     user = db.query(models.Users).filter(models.Users.username == username).first()
     if not user:
         return False
@@ -70,7 +74,7 @@ def authenticate_user(username: str, password: str, db):
 
 def create_access_token(
     username: str, user_id: int, expires_delta: Optional[timedelta] = None
-):
+) -> str:
     encode = {"sub": username, "id": user_id}
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -80,7 +84,7 @@ def create_access_token(
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def get_current_user(token: str = Depends(oauth2_bearer)):
+async def get_current_user(token: str = Depends(oauth2_bearer)) -> dict:
     try:
         payload = jwt.decode(
             token, SECRET_KEY, algorithms=[ALGORITHM]
@@ -98,7 +102,7 @@ async def get_current_user(token: str = Depends(oauth2_bearer)):
 
 
 @router.post("/create/user")
-async def create_new_user(create_user: CreateUser, db: Session = Depends(get_db)):
+async def create_new_user(create_user: CreateUser, db: Session = Depends(get_db)) -> str:
     create_user_model = models.Users()
     create_user_model.email = (
         create_user.email
@@ -122,9 +126,9 @@ async def create_new_user(create_user: CreateUser, db: Session = Depends(get_db)
 
 @router.post("/token")
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db),  # what does Depends() by itself do?
-):
+    form_data: OAuth2PasswordRequestForm = Depends(),  # what does Depends() by itself do?
+    db: Session = Depends(get_db),
+) -> dict:
     user = authenticate_user(
         username=form_data.username, password=form_data.password, db=db
     )
@@ -140,7 +144,7 @@ async def login_for_access_token(
 
 
 # Exceptions
-def get_user_exception():
+def get_user_exception() -> HTTPException:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -149,7 +153,7 @@ def get_user_exception():
     return credentials_exception
 
 
-def token_exception():
+def token_exception() -> HTTPException:
     token_exception_response = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Incorrect username or password",
