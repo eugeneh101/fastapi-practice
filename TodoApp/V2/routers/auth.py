@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("..")
 
 from datetime import datetime, timedelta
@@ -30,6 +31,7 @@ class CreateUser(BaseModel):
     first_name: str
     last_name: str
     password: str
+    phone_number: Optional[str]
 
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -41,7 +43,7 @@ oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
 router = APIRouter(
     prefix="/auth",  # prefix to url
     tags=["auth"],  # puts in separate group in Swagger docs
-    responses={401: {"user": "Not authorized"}}
+    responses={401: {"user": "Not authorized"}},
 )
 
 
@@ -102,7 +104,9 @@ async def get_current_user(token: str = Depends(oauth2_bearer)) -> dict:
 
 
 @router.post("/create/user")
-async def create_new_user(create_user: CreateUser, db: Session = Depends(get_db)) -> str:
+async def create_new_user(
+    create_user: CreateUser, db: Session = Depends(get_db)
+) -> str:
     create_user_model = models.Users()
     create_user_model.email = (
         create_user.email
@@ -115,6 +119,7 @@ async def create_new_user(create_user: CreateUser, db: Session = Depends(get_db)
     )  # then that attribute is not saved to db on .commit()
     create_user_model.last_name = create_user.last_name  # and resolves to NULL
     create_user_model.hashed_password = get_password_hash(password=create_user.password)
+    create_user_model.phone_number = create_user.phone_number
     create_user_model.is_active = True
     db.add(create_user_model)
     db.commit()

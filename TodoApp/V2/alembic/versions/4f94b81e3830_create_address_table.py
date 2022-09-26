@@ -25,7 +25,7 @@ def upgrade():
         sa.Column("city", sa.String(), nullable=False),
         sa.Column("state", sa.String(), nullable=False),
         sa.Column("country", sa.String(), nullable=False),
-        sa.Column("postcalcode", sa.String(), nullable=False),
+        sa.Column("postalcode", sa.String(), nullable=False),
     )
 
 

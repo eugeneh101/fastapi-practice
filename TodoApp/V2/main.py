@@ -6,7 +6,7 @@ from fastapi import FastAPI, Depends  # , HTTPException
 import models
 from database import engine  # , Base , SessionLocal
 from company import companyapis, dependencies
-from routers import auth, todos, users
+from routers import address, auth, todos, users
 
 # from routers.auth import get_current_user, get_user_exception
 
@@ -25,3 +25,4 @@ app.include_router(
     responses={418: {"description": "Internal use only"}},
 )
 app.include_router(users.router)
+app.include_router(address.router)
