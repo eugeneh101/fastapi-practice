@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Union
 from typing import Optional
 
 from fastapi import FastAPI, Query, Body
@@ -42,6 +42,15 @@ def another_silly(bob: str = Query(max_length=30)):
     return str(type(bob))
 
 
+@app.get("/another_silly/")
+async def another_silly_(
+    uid: Optional[List[int]] = Query(default=None),
+    page: Optional[int] = None,
+    pageToken: Optional[str] = None,
+):
+    return {"uid": uid, "page": page, "pageToken": pageToken}
+
+
 class Item(BaseModel):
     name: str
     price: float
@@ -58,7 +67,8 @@ class ItemUser(BaseModel):
 
 
 @app.put("/attempt1/")
-async def update_item(item: Item, user: User):
+async def update_item(item: Item):  # , user: User):
+    return item
     return {"item": item, "user": user}
 
 
@@ -96,3 +106,24 @@ async def update_item(
 ):
     results = {"item_id": item_id, "item": item}
     return results
+
+
+from fastapi import File, UploadFile
+
+
+@app.post("/files/")
+async def create_file(file: bytes = File()):
+    # in Postman, in Body under form-data, put key is "file" and value is your actual file
+    return {"file_size": len(file)}
+
+
+@app.post("/uploadfile/")
+async def create_upload_file(file: UploadFile):
+    # in Postman, in Body under form-data, put key is "file" and value is your actual file
+    return {"filename": file.filename}
+
+
+@app.get("/items/")
+async def read_items(q: Union[List[str], None] = Query(default=None)):
+    query_items = {"q": q}
+    return query_items
