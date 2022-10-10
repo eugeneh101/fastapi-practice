@@ -15,33 +15,24 @@
                                         </tr>
                                 </thead>
                                 <tbody>
+
+                                        {% for todo in todos %}  <!-- loop -->
                                         <tr class="pointer">
-                                                <td>1</td>
-                                                <td>Take out the trash</td>
+                                                <td>{{ loop.index }}</td>  <!-- useful -->
+                                                <td>{{ todo.title }}</td>  <!-- from variable -->
                                                 <td>
                                                         <button type="button" class="btn btn-success">Complete</button>
-                                                        <button type="button" class="btn btn-danger">Delete</button>
+                                                        <button onclick="window.location.href='edit-todo/{{ todo.id }}'"
+                                                                type="button" class="btn btn-info">
+                                                                Edit  <!-- will bring you to he next page with the correct todo id -->
+                                                        </button>
                                                 </td>
                                         </tr>
-                                        <tr class="pointer">
-                                                <td>2</td>
-                                                <td>Take out the trash</td>
-                                                <td>
-                                                        <button type="button" class="btn btn-success">Complete</button>
-                                                        <button type="button" class="btn btn-danger">Delete</button>
-                                                </td>
-                                        </tr>
-                                        <tr class="pointer">
-                                                <td>3</td>
-                                                <td>Take out the trash</td>
-                                                <td>
-                                                        <button type="button" class="btn btn-success">Complete</button>
-                                                        <button type="button" class="btn btn-danger">Delete</button>
-                                                </td>
-                                        </tr>
+                                        {% endfor %}
+
                                 </tbody>
                         </table>
-                        <a class="btn btn-primary" href="#">Add a new Todo!</a>
+                        <a href="add-todo" class="btn btn-primary">Add a new Todo!</a>
                 </div>
         </div>
 </div>
