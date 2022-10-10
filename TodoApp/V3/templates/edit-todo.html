@@ -4,14 +4,14 @@
     <div class="card">
         <div class="card-header">Let's edit your todo!</div>
         <div class="card-body">
-            <form>
+            <form method="POST">
                 <div class="form-group">
                     <label>Title</label>
-                    <input type="text" class="form-control" name="title" value="{{todo.title}}" required>
+                    <input type="text" class="form-control" name="title" value="{{ todo.title }}" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" class="form-control" rows="3" required> {{todo.description}} </textarea>
+                    <textarea name="description" class="form-control" rows="3" required> {{ todo.description }} </textarea>
                 </div>
                 <div class="form-group">
                     <label>Priority</label>
@@ -24,7 +24,8 @@
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary">Edit your todo</button>
-                <button type="button" class="btn btn-danger">Delete</button>
+                <button onclick="window.location.href='/todos/delete/{{ todo.id }}'"
+                        type="button" class="btn btn-danger">Delete</button>
             </form>
         </div>
     </div>

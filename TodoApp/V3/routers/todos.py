@@ -94,3 +94,20 @@ async def edit_todo_commit(
     db.add(todo_model)
     db.commit()
     return RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/delete/{todo_id}")
+async def delete_todo(request: Request, todo_id: int, db: Session = Depends(get_db)):
+    todo_model = (
+        db.query(models.Todos)
+        .filter(models.Todos.id == todo_id)
+        .filter(models.Todos.owner_id == 1)
+    ).first()
+    if todo_model is None:
+        return RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
+    db.query(models.Todos).filter(
+        models.Todos.id == todo_id
+    ).delete()  # db.query() is Query object
+    # can we just do todo_model.delete(): No, 'Todos' object has no attribute 'delete'
+    db.commit()
+    return RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
