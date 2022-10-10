@@ -15,21 +15,35 @@
                                         </tr>
                                 </thead>
                                 <tbody>
-
                                         {% for todo in todos %}  <!-- loop -->
+                                        {% if todo.complete == False %}
                                         <tr class="pointer">
                                                 <td>{{ loop.index }}</td>  <!-- useful -->
                                                 <td>{{ todo.title }}</td>  <!-- from variable -->
                                                 <td>
-                                                        <button type="button" class="btn btn-success">Complete</button>
+                                                        <button onclick="window.location.href='complete/{{ todo.id }}'"
+                                                                type="button" class="btn btn-success">Complete</button>
                                                         <button onclick="window.location.href='edit-todo/{{ todo.id }}'"
                                                                 type="button" class="btn btn-info">
                                                                 Edit  <!-- will bring you to he next page with the correct todo id -->
                                                         </button>
                                                 </td>
                                         </tr>
+                                        {% else %}
+                                        <tr class="pointer alert alert-success">
+                                                <td>{{ loop.index }}</td>  <!-- useful -->
+                                                <td class="strike-through-td">{{ todo.title }}</td>  <!-- from variable -->
+                                                <td>
+                                                        <button onclick="window.location.href='complete/{{ todo.id }}'"
+                                                                type="button" class="btn btn-success">Undo</button>
+                                                        <button onclick="window.location.href='edit-todo/{{ todo.id }}'"
+                                                                type="button" class="btn btn-info">
+                                                                Edit  <!-- will bring you to he next page with the correct todo id -->
+                                                        </button>
+                                                </td>
+                                        </tr>
+                                        {% endif %}
                                         {% endfor %}
-
                                 </tbody>
                         </table>
                         <a href="add-todo" class="btn btn-primary">Add a new Todo!</a>
