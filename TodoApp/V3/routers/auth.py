@@ -5,10 +5,13 @@ sys.path.append("..")
 from datetime import datetime, timedelta
 from typing import Optional, Union
 
+
+from starlette.responses import RedirectResponse
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Response,
     Request,
     status,  # has a bunch of status codes
 )
@@ -23,9 +26,20 @@ from sqlalchemy.orm import Session
 import models
 from database import SessionLocal, engine
 
+
 SECRET_KEY = "secret_key"
 ALGORITHM = "HS256"
+bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
 templates = Jinja2Templates(directory="templates")
+
+models.Base.metadata.create_all(bind=engine)  # create databases
+# app = FastAPI()
+router = APIRouter(
+    prefix="/auth",  # prefix to url
+    tags=["auth"],  # puts in separate group in Swagger docs
+    responses={401: {"user": "Not authorized"}},
+)
 
 
 class CreateUser(BaseModel):
@@ -36,17 +50,16 @@ class CreateUser(BaseModel):
     password: str
 
 
-bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+class LoginForm:
+    def __init__(self, request: Request):
+        self.request: Request = request
+        self.username: Optional[str] = None
+        self.password: Optional[str] = None
 
-models.Base.metadata.create_all(bind=engine)  # create databases
-
-oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
-# app = FastAPI()
-router = APIRouter(
-    prefix="/auth",  # prefix to url
-    tags=["auth"],  # puts in separate group in Swagger docs
-    responses={401: {"user": "Not authorized"}},
-)
+    async def create_oauth_form(self):  # does this really need async?
+        form = await self.request.form()  # form is very dict-like
+        self.username = form.get("email")
+        self.password = form.get("password")
 
 
 def get_db():
@@ -132,6 +145,7 @@ async def create_new_user(
 
 @router.post("/token")
 async def login_for_access_token(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),  # what does Depends() by itself do?
     db: Session = Depends(get_db),
 ) -> dict:
@@ -140,18 +154,41 @@ async def login_for_access_token(
     )
     if not user:
         # raise HTTPException(status_code=404, detail="User not found")
-        raise token_exception()
+        return False  # raise token_exception()
     # return "User Validated"
-    token_expires = timedelta(minutes=20)
+    token_expires = timedelta(minutes=60)
     token = create_access_token(
         username=user.username, user_id=user.id, expires_delta=token_expires
     )
-    return {"token": token}
+    response.set_cookie(key="access_token", value=token, httponly=True)  # mutates state
+    return True  # {"token": token}
 
 
 @router.get("/", response_class=HTMLResponse)
 async def authentication_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+@router.post("/", response_class=HTMLResponse)
+async def login(request: Request, db: Session = Depends(get_db)):
+    try:
+        form = LoginForm(request)
+        await form.create_oauth_form()  # does this really need await?
+        response = RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
+        validate_user_cookie = await login_for_access_token(
+            response=response, form_data=form, db=db
+        )  # calls endpoint function directly
+        if not validate_user_cookie:  # unsuccessful goes back to the same page
+            msg = "Incorrect Username or Password"
+            return templates.TemplateResponse(
+                "login.html", {"request": request, "msg": msg}
+            )
+        return response  # successful goes to /todo
+    except HTTPException:  # what is this excepting?
+        msg = "Unknown Error"
+        return templates.TemplateResponse(  # unsuccessful goes back to the same page
+            "login.html", {"request": request, "msg": msg}
+        )
 
 
 @router.get("/register", response_class=HTMLResponse)
