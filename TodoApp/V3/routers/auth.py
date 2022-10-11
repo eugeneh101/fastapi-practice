@@ -101,8 +101,11 @@ def create_access_token(
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-async def get_current_user(token: str = Depends(oauth2_bearer)) -> dict:
+async def get_current_user(request: Request) -> Optional[dict]:
     try:
+        token = request.cookies.get("access_token")
+        if token is None:
+            return None
         payload = jwt.decode(
             token, SECRET_KEY, algorithms=[ALGORITHM]
         )  # actually checks `exp`
@@ -110,7 +113,8 @@ async def get_current_user(token: str = Depends(oauth2_bearer)) -> dict:
         user_id: int = payload.get("id")
         if (username is None) or (user_id is None):
             # raise HTTPException(status_code=404, detail="User not found")
-            raise get_user_exception()
+            # raise get_user_exception()
+            return None
         return {"username": username, "id": user_id}
     except JWTError as e:
         # raise HTTPException(status_code=404, detail="User not found")

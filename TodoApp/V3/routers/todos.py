@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import SessionLocal, engine
+from .auth import get_current_user
 
 
 router = APIRouter(
@@ -38,7 +39,12 @@ def get_db() -> Generator:
 async def read_all_by_user(
     request: Request, db: Session = Depends(get_db)
 ):  # what does request do?
-    todos = db.query(models.Todos).filter(models.Todos.owner_id == 1).all()
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
+    todos = db.query(models.Todos).filter(models.Todos.owner_id == user["id"]).all()
     return templates.TemplateResponse(  # use template
         "home.html", {"request": request, "todos": todos}
     )  # this your context
@@ -46,6 +52,11 @@ async def read_all_by_user(
 
 @router.get("/add-todo", response_class=HTMLResponse)
 async def add_new_todo(request: Request):
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse("add-todo.html", {"request": request})
 
 
@@ -57,12 +68,17 @@ async def create_todo(
     priority: int = Form(...),
     db: Session = Depends(get_db),
 ):
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo_model = models.Todos()
     todo_model.title = title
     todo_model.description = description
     todo_model.priority = priority
     todo_model.complete = False
-    todo_model.owner_id = 1
+    todo_model.owner_id = user["id"]
     db.add(todo_model)
     db.commit()
     return RedirectResponse(
@@ -72,6 +88,11 @@ async def create_todo(
 
 @router.get("/edit-todo/{todo_id}", response_class=HTMLResponse)
 async def edit_todo(request: Request, todo_id: int, db: Session = Depends(get_db)):
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     return templates.TemplateResponse(
         "edit-todo.html", {"request": request, "todo": todo}
@@ -87,6 +108,11 @@ async def edit_todo_commit(
     priority=Form(...),
     db: Session = Depends(get_db),
 ):
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo_model = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     todo_model.title = title
     todo_model.description = description
@@ -98,10 +124,15 @@ async def edit_todo_commit(
 
 @router.get("/delete/{todo_id}")
 async def delete_todo(request: Request, todo_id: int, db: Session = Depends(get_db)):
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo_model = (
         db.query(models.Todos)
         .filter(models.Todos.id == todo_id)
-        .filter(models.Todos.owner_id == 1)
+        .filter(models.Todos.owner_id == user["id"])
     ).first()
     if todo_model is None:
         return RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
@@ -115,6 +146,11 @@ async def delete_todo(request: Request, todo_id: int, db: Session = Depends(get_
 
 @router.get("/complete/{todo_id}", response_class=HTMLResponse)
 async def complete_todo(request: Request, todo_id: int, db: Session = Depends(get_db)):
+    user = await get_current_user(
+        request=request
+    )  # if no cookie, redirect to login page
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     todo.complete = not todo.complete
     db.add(todo)
