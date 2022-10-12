@@ -170,13 +170,15 @@ async def login_for_access_token(
 
 @router.get("/", response_class=HTMLResponse)
 async def authentication_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(
+        "login.html", {"request": request}  # apparently "request" is a required key
+    )
 
 
 @router.post("/", response_class=HTMLResponse)
 async def login(request: Request, db: Session = Depends(get_db)):
     try:
-        form = LoginForm(request)
+        form = LoginForm(request=request)
         await form.create_oauth_form()  # does this really need await?
         response = RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
         validate_user_cookie = await login_for_access_token(
@@ -193,6 +195,16 @@ async def login(request: Request, db: Session = Depends(get_db)):
         return templates.TemplateResponse(  # unsuccessful goes back to the same page
             "login.html", {"request": request, "msg": msg}
         )
+
+
+@router.get("/logout")
+async def logout(request: Request):
+    msg = "Logout Successful"
+    response = templates.TemplateResponse(
+        "login.html", {"request": request, "msg": msg}
+    )
+    response.delete_cookie(key="access_token")
+    return response
 
 
 @router.get("/register", response_class=HTMLResponse)

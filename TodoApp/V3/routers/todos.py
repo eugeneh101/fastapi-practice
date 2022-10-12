@@ -46,7 +46,7 @@ async def read_all_by_user(
         return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todos = db.query(models.Todos).filter(models.Todos.owner_id == user["id"]).all()
     return templates.TemplateResponse(  # use template
-        "home.html", {"request": request, "todos": todos}
+        "home.html", {"request": request, "todos": todos, "user": user}
     )  # this your context
 
 
@@ -57,7 +57,9 @@ async def add_new_todo(request: Request):
     )  # if no cookie, redirect to login page
     if user is None:
         return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
-    return templates.TemplateResponse("add-todo.html", {"request": request})
+    return templates.TemplateResponse(
+        "add-todo.html", {"request": request, "user": user}
+    )
 
 
 @router.post("/add-todo", response_class=HTMLResponse)
@@ -95,7 +97,7 @@ async def edit_todo(request: Request, todo_id: int, db: Session = Depends(get_db
         return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     return templates.TemplateResponse(
-        "edit-todo.html", {"request": request, "todo": todo}
+        "edit-todo.html", {"request": request, "todo": todo, "user": user}
     )
 
 
