@@ -43,14 +43,6 @@ router = APIRouter(
 )
 
 
-class CreateUser(BaseModel):
-    username: str
-    email: Optional[str]
-    first_name: str
-    last_name: str
-    password: str
-
-
 class LoginForm:
     def __init__(self, request: Request):
         self.request: Request = request
@@ -115,37 +107,13 @@ async def get_current_user(request: Request) -> Optional[dict]:
         if (username is None) or (user_id is None):
             # raise HTTPException(status_code=404, detail="User not found")
             # raise get_user_exception()
-            return None
+            # return None
+            logout(request=request)
         return {"username": username, "id": user_id}
     except JWTError as e:
         # raise HTTPException(status_code=404, detail="User not found")
-        raise HTTPException(status_code=404, detail=str(e))
+        # raise HTTPException(status_code=404, detail=str(e))
         raise get_user_exception()
-
-
-@router.post("/create/user")
-async def create_new_user(
-    create_user: CreateUser, db: Session = Depends(get_db)
-) -> str:
-    create_user_model = models.Users()
-    create_user_model.email = (
-        create_user.email
-    )  # if nullable is not set to False, then can be NULL
-    create_user_model.username = (
-        create_user.username
-    )  # which means that you mistype the attribute on the instance
-    create_user_model.first_name = (
-        create_user.first_name
-    )  # then that attribute is not saved to db on .commit()
-    create_user_model.last_name = create_user.last_name  # and resolves to NULL
-    create_user_model.hashed_password = get_password_hash(password=create_user.password)
-    create_user_model.is_active = True
-    db.add(create_user_model)
-    db.commit()
-    # return str(
-    #     vars(create_user_model)
-    # )  # once model is committed, it seems the data is removed from the instance
-    return "User created!"
 
 
 @router.post("/token")
@@ -249,22 +217,3 @@ async def register_user(
     db.commit()
     msg = "User successfully created"
     return templates.TemplateResponse("login.html", {"request": request, "msg": msg})
-
-
-# Exceptions
-def get_user_exception() -> HTTPException:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    return credentials_exception
-
-
-def token_exception() -> HTTPException:
-    token_exception_response = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect username or password",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    return token_exception_response
