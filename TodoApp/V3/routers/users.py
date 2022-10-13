@@ -1,5 +1,4 @@
 import sys
-from urllib.parse import uses_fragment
 
 sys.path.append("..")
 from typing import Generator, List, Union
@@ -9,7 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import models
-from .auth import get_current_user, get_password_hash, get_user_exception
+from .auth import get_current_user, get_password_hash  # , get_user_exception
 from database import engine, SessionLocal
 
 

@@ -20,7 +20,6 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi.templating import Jinja2Templates
 from jose import jwt, JWTError
-from pydantic import BaseModel
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -111,9 +110,7 @@ async def get_current_user(request: Request) -> Optional[dict]:
             logout(request=request)
         return {"username": username, "id": user_id}
     except JWTError as e:
-        # raise HTTPException(status_code=404, detail="User not found")
-        # raise HTTPException(status_code=404, detail=str(e))
-        raise get_user_exception()
+        raise HTTPException(status_code=404, details="Not found")
 
 
 @router.post("/token")
