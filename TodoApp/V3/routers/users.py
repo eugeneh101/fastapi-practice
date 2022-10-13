@@ -1,14 +1,16 @@
 import sys
 
 sys.path.append("..")
-from typing import Generator, List, Union
+from typing import Generator
 
-from fastapi import APIRouter, Depends
-
+from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from starlette.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 import models
-from .auth import get_current_user, get_password_hash  # , get_user_exception
+from .auth import get_current_user, get_password_hash, verify_password
 from database import engine, SessionLocal
 
 
@@ -18,6 +20,7 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},  # what does responses do?
 )
 models.Base.metadata.create_all(bind=engine)
+templates = Jinja2Templates(directory="templates")
 
 
 def get_db() -> Generator:
@@ -28,36 +31,77 @@ def get_db() -> Generator:
         db.close()
 
 
-@router.get("/")
-async def get_all_users(db: Session = Depends(get_db)) -> List[str]:
-    users = db.query(models.Users).all()
-    return users
-    # return [user.username for user in users]
+@router.get("/edit-password", response_class=HTMLResponse)
+async def edit_user_view(request: Request):
+    user = await get_current_user(request=request)
+    return templates.TemplateResponse(
+        "edit-user-password.html", {"request": request, "user": user}
+    )
 
 
-@router.get("/user/{user_id}")
-async def get_user_by_path(
-    user_id: int, db: Session = Depends(get_db)
-) -> Union[models.Users, str]:
-    user = db.query(models.Users).filter(models.Users.id == user_id).first()
-    if user is not None:
-        return user
-    else:
-        return f"Invalid user id {user_id}"
+@router.post("/edit-password", response_class=HTMLResponse)
+async def edit_password(
+    request: Request,
+    username: str = Form(...),
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+    verify_new_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = await get_current_user(request=request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
+    msg = "Invalid username or password"
+    user_model = (
+        db.query(models.Users).filter(models.Users.username == username).first()
+    )
+    if (  # considered try/except but this should work
+        (user_model is not None)
+        and (username == user_model.username)
+        and verify_password(
+            plain_password=old_password, hashed_password=user_model.hashed_password
+        )
+        and (new_password == verify_new_password)
+    ):
+        user_model.hashed_password = get_password_hash(password=new_password)
+        db.add(user_model)
+        db.commit()
+        msg = "Password updated"
+    return templates.TemplateResponse(
+        "edit-user-password.html", {"request": request, "msg": msg, "user": user}
+    )
 
 
-@router.get("/user/")
-async def get_user_by_query(
-    user_id: int, db: Session = Depends(get_db)
-) -> Union[models.Users, str]:
-    user = db.query(models.Users).filter(models.Users.id == user_id).first()
-    if user is not None:
-        return user
-    else:
-        return f"Invalid user id {user_id}"
+# @router.get("/")
+# async def get_all_users(db: Session = Depends(get_db)) -> List[str]:
+#     users = db.query(models.Users).all()
+#     return users
+#     # return [user.username for user in users]
 
 
-from pydantic import BaseModel
+# @router.get("/user/{user_id}")
+# async def get_user_by_path(
+#     user_id: int, db: Session = Depends(get_db)
+# ) -> Union[models.Users, str]:
+#     user = db.query(models.Users).filter(models.Users.id == user_id).first()
+#     if user is not None:
+#         return user
+#     else:
+#         return f"Invalid user id {user_id}"
+
+
+# @router.get("/user/")
+# async def get_user_by_query(
+#     user_id: int, db: Session = Depends(get_db)
+# ) -> Union[models.Users, str]:
+#     user = db.query(models.Users).filter(models.Users.id == user_id).first()
+#     if user is not None:
+#         return user
+#     else:
+#         return f"Invalid user id {user_id}"
+
+
+# from pydantic import BaseModel
 
 
 # class Password(BaseModel):
@@ -81,13 +125,13 @@ from pydantic import BaseModel
 #         return "Password successfully updated"
 
 
-from .auth import authenticate_user, verify_password
+# from .auth import authenticate_user, verify_password
 
 
-class UserVerification(BaseModel):
-    username: str
-    password: str
-    new_password: str
+# class UserVerification(BaseModel):
+#     username: str
+#     password: str
+#     new_password: str
 
 
 # @router.put("/password/")
@@ -108,50 +152,50 @@ class UserVerification(BaseModel):
 #         return "Password successfully updated"
 
 
-@router.put("/password/")
-async def update_password(
-    user_verification: UserVerification,
-    user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> str:
-    if user is None:
-        raise get_user_exception()
-    else:
-        user_model = (
-            db.query(models.Users).filter(models.Users.id == user["id"]).first()
-        )
-        if (
-            user_model is not None
-            and (user_verification.username == user["username"])
-            and verify_password(
-                plain_password=user_verification.password,  # seems to automatically raise exception
-                hashed_password=user_model.hashed_password,  # so don't need `else` block
-            )
-        ):
-            user_model.hashed_password = get_password_hash(
-                password=user_verification.new_password
-            )
-            db.add(user_model)
-            db.commit()
-            return "Password successfully updated"
-        else:
-            raise get_user_exception()  # username is not matching
+# @router.put("/password/")
+# async def update_password(
+#     user_verification: UserVerification,
+#     user: dict = Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ) -> str:
+#     if user is None:
+#         raise get_user_exception()
+#     else:
+#         user_model = (
+#             db.query(models.Users).filter(models.Users.id == user["id"]).first()
+#         )
+#         if (
+#             user_model is not None
+#             and (user_verification.username == user["username"])
+#             and verify_password(
+#                 plain_password=user_verification.password,  # seems to automatically raise exception
+#                 hashed_password=user_model.hashed_password,  # so don't need `else` block
+#             )
+#         ):
+#             user_model.hashed_password = get_password_hash(
+#                 password=user_verification.new_password
+#             )
+#             db.add(user_model)
+#             db.commit()
+#             return "Password successfully updated"
+#         else:
+#             raise get_user_exception()  # username is not matching
 
 
-@router.delete("/user/")
-def delete_user(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    user_model = (
-        db.query(models.Users).filter(models.Users.username == user["username"]).first()
-    )
-    if user_model is None:
-        return f"User {user['username']} does not exist"
-    else:
-        db.query(models.Users).filter(
-            models.Users.username == user["username"]
-        ).delete()
-        db.commit()
-        # probably also want do delete all the tasks
-        return f"User {user['username']} deleted"
+# @router.delete("/user/")
+# def delete_user(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+#     user_model = (
+#         db.query(models.Users).filter(models.Users.username == user["username"]).first()
+#     )
+#     if user_model is None:
+#         return f"User {user['username']} does not exist"
+#     else:
+#         db.query(models.Users).filter(
+#             models.Users.username == user["username"]
+#         ).delete()
+#         db.commit()
+#         # probably also want do delete all the tasks
+#         return f"User {user['username']} deleted"
 
 
 # Enhance users.py to be able to get a single user by a path parameter: DONE
