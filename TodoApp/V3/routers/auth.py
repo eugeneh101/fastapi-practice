@@ -17,7 +17,7 @@ from fastapi import (
     status,  # has a bunch of status codes
 )
 from fastapi.responses import HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -118,7 +118,7 @@ async def login_for_access_token(
     response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),  # what does Depends() by itself do?
     db: Session = Depends(get_db),
-) -> dict:
+) -> bool:
     user = authenticate_user(
         username=form_data.username, password=form_data.password, db=db
     )
